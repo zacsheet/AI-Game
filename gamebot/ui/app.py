@@ -29,6 +29,8 @@ class LogBridge(QObject):
 class ControlBridge(QObject):
     stop_requested = pyqtSignal()
     pause_requested = pyqtSignal()
+    coordinate_requested = pyqtSignal()
+    record_requested = pyqtSignal()
 
 
 class GameBotWindow(QMainWindow):
@@ -72,7 +74,7 @@ class GameBotWindow(QMainWindow):
         splitter.addWidget(self.task_panel)
         splitter.addWidget(self.editor)
         splitter.addWidget(self.log_panel)
-        splitter.setSizes([240, 650, 390])
+        splitter.setSizes([240, 720, 360])
 
         container = QWidget()
         layout = QHBoxLayout(container)
@@ -86,6 +88,7 @@ class GameBotWindow(QMainWindow):
         self.task_panel.delete_task_requested.connect(self._delete_task)
         self.task_panel.move_task_requested.connect(self._move_task)
         self.editor.changed.connect(self._on_changed)
+        self.editor.log_requested.connect(self._append_log)
         self.import_button.clicked.connect(self._import_project)
         self.export_button.clicked.connect(self._export_project)
         self.run_button.clicked.connect(self._start)
@@ -93,6 +96,8 @@ class GameBotWindow(QMainWindow):
         self.bridge.received.connect(self._append_log)
         self.controls.stop_requested.connect(self._stop)
         self.controls.pause_requested.connect(self._toggle_pause)
+        self.controls.coordinate_requested.connect(self.editor.show_coordinate_picker)
+        self.controls.record_requested.connect(self.editor.toggle_recording)
 
     def _refresh(self) -> None:
         self.task_panel.set_tasks(self.project.tasks)
@@ -143,7 +148,7 @@ class GameBotWindow(QMainWindow):
         self.task_panel.set_tasks(self.project.tasks)
         self.task_panel.list.setCurrentRow(to_row)
         self._select_task(to_row)
-        self._append_log("info", f"任务顺序已更新: {task.name}")
+        self._append_log("info", f"任务顺序已更新 {task.name}")
 
     def _on_changed(self) -> None:
         self._save_silent()
@@ -209,6 +214,8 @@ class GameBotWindow(QMainWindow):
 
             keyboard.add_hotkey(self.project.hotkeys.get("stop_all", "F9"), self.controls.stop_requested.emit)
             keyboard.add_hotkey(self.project.hotkeys.get("pause_resume", "F8"), self.controls.pause_requested.emit)
-            self._append_log("info", "热键已注册: F9 停止，F8 暂停/恢复")
+            keyboard.add_hotkey(self.project.hotkeys.get("coordinate_picker", "F6"), self.controls.coordinate_requested.emit)
+            keyboard.add_hotkey(self.project.hotkeys.get("record_toggle", "F7"), self.controls.record_requested.emit)
+            self._append_log("info", "热键已注册：F6 坐标拾取，F7 录制，F8 暂停/恢复，F9 停止")
         except Exception as exc:
             self._append_log("warn", f"热键注册不可用: {exc}")

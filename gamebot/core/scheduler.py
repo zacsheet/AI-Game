@@ -14,6 +14,7 @@ from gamebot.models import Project, Task
 
 
 LogCallback = Callable[[str, str], None]
+END_TASK = "__end_task__"
 
 
 @dataclass
@@ -104,19 +105,37 @@ class Scheduler:
             return False
 
         any_matched = False
-        for rule in task.rules:
+        rule_index = 0
+        rule_positions = {rule.id: index for index, rule in enumerate(task.rules)}
+        steps = 0
+        max_steps = max(1, len(task.rules) * 3)
+
+        while rule_index < len(task.rules) and steps < max_steps:
+            steps += 1
+            rule = task.rules[rule_index]
             if not rule.enabled:
+                rule_index += 1
                 continue
+
             try:
                 matches = self.matcher.match_rule(rule, task.roi)
             except Exception as exc:
                 self._log("error", f"Task[{task.name}] Rule[{rule.name}] {exc}")
+                rule_index += 1
                 continue
 
             if not matches:
                 self._log("skip", f"Task[{task.name}] 未找到 {rule.image} -> {rule.not_found}")
+                if rule.next_on_not_found == END_TASK:
+                    self._log("info", f"Task[{task.name}] 不成立分支结束本轮任务")
+                    return any_matched
+                jump_to = rule_positions.get(rule.next_on_not_found)
+                if jump_to is not None:
+                    rule_index = jump_to
+                    continue
                 if rule.not_found == "skip_task":
                     return any_matched
+                rule_index += 1
                 continue
 
             any_matched = True
@@ -130,6 +149,18 @@ class Scheduler:
                 if not rule.multi:
                     break
                 time.sleep(0.1)
+
+            if rule.next_on_found == END_TASK:
+                self._log("info", f"Task[{task.name}] 成立分支结束本轮任务")
+                return any_matched
+            jump_to = rule_positions.get(rule.next_on_found)
+            if jump_to is not None:
+                rule_index = jump_to
+                continue
+            rule_index += 1
+
+        if steps >= max_steps:
+            self._log("warn", f"Task[{task.name}] 分支跳转次数过多，已停止本轮任务")
         return any_matched
 
     def _log(self, level: str, message: str) -> None:

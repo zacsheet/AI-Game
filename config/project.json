@@ -3,7 +3,9 @@
   "name": "我的游戏配置",
   "hotkeys": {
     "stop_all": "F9",
-    "pause_resume": "F8"
+    "pause_resume": "F8",
+    "coordinate_picker": "F6",
+    "record_toggle": "F7"
   },
   "tasks": [
     {
@@ -28,6 +30,99 @@
           "actions": [
             {
               "type": "click",
+              "use_match": true,
+              "x": 0,
+              "y": 0,
+              "button": "left",
+              "offset_random": 3,
+              "delay_before_ms": 0,
+              "delay_after_ms": 0,
+              "duration_ms": 0,
+              "key": "",
+              "to_x": 0,
+              "to_y": 0,
+              "curve": "bezier"
+            },
+            {
+              "type": "click",
+              "use_match": false,
+              "x": 2034,
+              "y": 898,
+              "button": "left",
+              "offset_random": 0,
+              "delay_before_ms": 0,
+              "delay_after_ms": 0,
+              "duration_ms": 0,
+              "key": "",
+              "to_x": 0,
+              "to_y": 0,
+              "curve": "bezier"
+            },
+            {
+              "type": "click",
+              "use_match": false,
+              "x": 1970,
+              "y": 1075,
+              "button": "left",
+              "offset_random": 0,
+              "delay_before_ms": 0,
+              "delay_after_ms": 0,
+              "duration_ms": 0,
+              "key": "",
+              "to_x": 0,
+              "to_y": 0,
+              "curve": "bezier"
+            },
+            {
+              "type": "click",
+              "use_match": false,
+              "x": 1492,
+              "y": 1125,
+              "button": "left",
+              "offset_random": 0,
+              "delay_before_ms": 0,
+              "delay_after_ms": 0,
+              "duration_ms": 0,
+              "key": "",
+              "to_x": 0,
+              "to_y": 0,
+              "curve": "bezier"
+            },
+            {
+              "type": "click",
+              "use_match": false,
+              "x": 2118,
+              "y": 780,
+              "button": "left",
+              "offset_random": 0,
+              "delay_before_ms": 0,
+              "delay_after_ms": 0,
+              "duration_ms": 0,
+              "key": "",
+              "to_x": 0,
+              "to_y": 0,
+              "curve": "bezier"
+            },
+            {
+              "type": "click",
+              "use_match": false,
+              "x": 2118,
+              "y": 780,
+              "button": "left",
+              "offset_random": 0,
+              "delay_before_ms": 0,
+              "delay_after_ms": 0,
+              "duration_ms": 0,
+              "key": "",
+              "to_x": 0,
+              "to_y": 0,
+              "curve": "bezier"
+            },
+            {
+              "type": "click",
+              "use_match": false,
+              "x": 2110,
+              "y": 673,
               "button": "left",
               "offset_random": 0,
               "delay_before_ms": 0,
@@ -39,7 +134,9 @@
               "curve": "bezier"
             }
           ],
-          "not_found": "continue"
+          "not_found": "continue",
+          "next_on_found": "",
+          "next_on_not_found": "rule_0ab5bd5c"
         },
         {
           "id": "rule_0ab5bd5c",
@@ -52,6 +149,9 @@
           "actions": [
             {
               "type": "click",
+              "use_match": true,
+              "x": 0,
+              "y": 0,
               "button": "left",
               "offset_random": 0,
               "delay_before_ms": 0,
@@ -63,7 +163,9 @@
               "curve": "bezier"
             }
           ],
-          "not_found": "continue"
+          "not_found": "continue",
+          "next_on_found": "rule_b7bf0c1b",
+          "next_on_not_found": ""
         },
         {
           "id": "rule_b7bf0c1b",
@@ -76,6 +178,9 @@
           "actions": [
             {
               "type": "click",
+              "use_match": true,
+              "x": 0,
+              "y": 0,
               "button": "left",
               "offset_random": 0,
               "delay_before_ms": 0,
@@ -87,7 +192,9 @@
               "curve": "bezier"
             }
           ],
-          "not_found": "continue"
+          "not_found": "continue",
+          "next_on_found": "",
+          "next_on_not_found": ""
         },
         {
           "id": "rule_859b1c4e",
@@ -100,6 +207,9 @@
           "actions": [
             {
               "type": "click",
+              "use_match": true,
+              "x": 0,
+              "y": 0,
               "button": "left",
               "offset_random": 0,
               "delay_before_ms": 0,
@@ -111,7 +221,68 @@
               "curve": "bezier"
             }
           ],
-          "not_found": "continue"
+          "not_found": "continue",
+          "next_on_found": "",
+          "next_on_not_found": ""
+        },
+        {
+          "id": "rule_b1c9f7e5",
+          "name": "规则 5",
+          "enabled": true,
+          "image": "",
+          "threshold": 0.88,
+          "multi": false,
+          "roi_override": null,
+          "actions": [
+            {
+              "type": "click",
+              "use_match": true,
+              "x": 0,
+              "y": 0,
+              "button": "left",
+              "offset_random": 0,
+              "delay_before_ms": 0,
+              "delay_after_ms": 0,
+              "duration_ms": 0,
+              "key": "",
+              "to_x": 0,
+              "to_y": 0,
+              "curve": "bezier"
+            },
+            {
+              "type": "click",
+              "use_match": false,
+              "x": 2104,
+              "y": 590,
+              "button": "left",
+              "offset_random": 0,
+              "delay_before_ms": 0,
+              "delay_after_ms": 0,
+              "duration_ms": 0,
+              "key": "",
+              "to_x": 0,
+              "to_y": 0,
+              "curve": "bezier"
+            },
+            {
+              "type": "click",
+              "use_match": false,
+              "x": 2002,
+              "y": 940,
+              "button": "left",
+              "offset_random": 0,
+              "delay_before_ms": 0,
+              "delay_after_ms": 0,
+              "duration_ms": 0,
+              "key": "",
+              "to_x": 0,
+              "to_y": 0,
+              "curve": "bezier"
+            }
+          ],
+          "not_found": "continue",
+          "next_on_found": "",
+          "next_on_not_found": ""
         }
       ]
     }

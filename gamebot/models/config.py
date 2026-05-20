@@ -7,7 +7,7 @@ from uuid import uuid4
 import json
 
 
-ActionType = Literal["click", "double_click", "right_click", "wait", "key", "drag"]
+ActionType = Literal["click", "double_click", "right_click", "wait", "key", "drag", "move"]
 ExecuteMode = Literal["sequence", "parallel", "priority"]
 NotFoundPolicy = Literal["continue", "skip", "skip_task"]
 
@@ -41,6 +41,9 @@ class Rect:
 @dataclass
 class Action:
     type: ActionType = "click"
+    use_match: bool = True
+    x: int = 0
+    y: int = 0
     button: str = "left"
     offset_random: int = 0
     delay_before_ms: int = 0
@@ -69,6 +72,8 @@ class Rule:
     roi_override: Rect | None = None
     actions: list[Action] = field(default_factory=lambda: [Action()])
     not_found: NotFoundPolicy = "continue"
+    next_on_found: str = ""
+    next_on_not_found: str = ""
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "Rule":
@@ -82,6 +87,8 @@ class Rule:
             roi_override=Rect.from_dict(data.get("roi_override")),
             actions=[Action.from_dict(item) for item in data.get("actions", [])] or [Action()],
             not_found=data.get("not_found", "continue"),
+            next_on_found=str(data.get("next_on_found") or ""),
+            next_on_not_found=str(data.get("next_on_not_found") or ""),
         )
 
 
@@ -118,15 +125,19 @@ class Task:
 class Project:
     version: str = "1.0"
     name: str = "我的游戏配置"
-    hotkeys: dict[str, str] = field(default_factory=lambda: {"stop_all": "F9", "pause_resume": "F8"})
+    hotkeys: dict[str, str] = field(
+        default_factory=lambda: {"stop_all": "F9", "pause_resume": "F8", "coordinate_picker": "F6", "record_toggle": "F7"}
+    )
     tasks: list[Task] = field(default_factory=list)
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "Project":
+        hotkeys = {"stop_all": "F9", "pause_resume": "F8", "coordinate_picker": "F6", "record_toggle": "F7"}
+        hotkeys.update(dict(data.get("hotkeys") or {}))
         return cls(
             version=str(data.get("version") or "1.0"),
             name=str(data.get("name") or "我的游戏配置"),
-            hotkeys=dict(data.get("hotkeys") or {"stop_all": "F9", "pause_resume": "F8"}),
+            hotkeys=hotkeys,
             tasks=[Task.from_dict(item) for item in data.get("tasks", [])],
         )
 
