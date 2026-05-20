@@ -33,7 +33,7 @@ class TemplateMatcher:
         image_path = Path(rule.image)
         if not image_path.is_absolute():
             image_path = self.image_root / image_path
-        template = cv2.imread(str(image_path), cv2.IMREAD_COLOR)
+        template = self._read_image(image_path)
         if template is None:
             raise FileNotFoundError(f"图片不存在或无法读取: {image_path}")
 
@@ -75,3 +75,12 @@ class TemplateMatcher:
     @staticmethod
     def _overlaps(a: Match, b: Match) -> bool:
         return not (a.x + a.w < b.x or b.x + b.w < a.x or a.y + a.h < b.y or b.y + b.h < a.y)
+
+    @staticmethod
+    def _read_image(path: Path) -> np.ndarray | None:
+        if not path.exists():
+            return None
+        data = np.fromfile(str(path), dtype=np.uint8)
+        if data.size == 0:
+            return None
+        return cv2.imdecode(data, cv2.IMREAD_COLOR)
