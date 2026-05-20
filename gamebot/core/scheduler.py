@@ -23,6 +23,7 @@ class TaskRuntime:
     next_run: float = 0.0
     fail_count: int = 0
     executions: int = 0
+    completed: bool = False
 
 
 class Scheduler:
@@ -35,6 +36,7 @@ class Scheduler:
         self._pause_event = threading.Event()
         self._thread: threading.Thread | None = None
         self._runtime: dict[str, TaskRuntime] = {}
+        self._active_task_index = 0
 
     @property
     def running(self) -> bool:
@@ -47,6 +49,7 @@ class Scheduler:
         self._pause_event.clear()
         now = time.monotonic()
         self._runtime = {task.id: TaskRuntime(next_run=now + task.interval_ms / 1000) for task in self.project.tasks}
+        self._active_task_index = self._find_next_task_index(0)
         self._thread = threading.Thread(target=self._loop, name="GameBotScheduler", daemon=True)
         self._thread.start()
         self._log("info", "调度器已启动")
@@ -69,18 +72,52 @@ class Scheduler:
             if self._pause_event.is_set():
                 time.sleep(0.2)
                 continue
-            for task in list(self.project.tasks):
-                if self._stop_event.is_set() or self._pause_event.is_set():
-                    break
-                now = time.monotonic()
-                runtime = self._runtime.setdefault(task.id, TaskRuntime(next_run=now))
-                if not task.enabled:
-                    runtime.next_run = now + task.interval_ms / 1000
-                    continue
-                if now >= runtime.next_run:
-                    self._run_due_task(task, runtime)
+
+            task = self._active_task()
+            if task is None:
+                time.sleep(0.2)
+                continue
+
+            runtime = self._runtime.setdefault(task.id, TaskRuntime(next_run=time.monotonic()))
+            now = time.monotonic()
+            if now >= runtime.next_run:
+                self._run_due_task(task, runtime)
             time.sleep(0.05)
         self._log("stop", "调度器已停止")
+
+    def _active_task(self) -> Task | None:
+        if self._active_task_index < 0 or self._active_task_index >= len(self.project.tasks):
+            return None
+        task = self.project.tasks[self._active_task_index]
+        runtime = self._runtime.setdefault(task.id, TaskRuntime(next_run=time.monotonic()))
+        if task.enabled and not runtime.completed:
+            return task
+        self._active_task_index = self._find_next_task_index(self._active_task_index + 1)
+        if self._active_task_index < 0:
+            self._log("stop", "任务队列已完成")
+            self._stop_event.set()
+            return None
+        return self.project.tasks[self._active_task_index]
+
+    def _find_next_task_index(self, start: int) -> int:
+        for index in range(max(0, start), len(self.project.tasks)):
+            task = self.project.tasks[index]
+            runtime = self._runtime.setdefault(task.id, TaskRuntime(next_run=time.monotonic()))
+            if task.enabled and not runtime.completed:
+                return index
+        return -1
+
+    def _advance_to_next_task(self) -> None:
+        next_index = self._find_next_task_index(self._active_task_index + 1)
+        if next_index < 0:
+            self._log("stop", "任务队列已完成")
+            self._stop_event.set()
+            return
+        self._active_task_index = next_index
+        task = self.project.tasks[next_index]
+        runtime = self._runtime.setdefault(task.id, TaskRuntime())
+        runtime.next_run = time.monotonic()
+        self._log("info", f"切换到下一个任务: {task.name}")
 
     def _run_due_task(self, task: Task, runtime: TaskRuntime) -> None:
         if runtime.running:
@@ -90,10 +127,16 @@ class Scheduler:
         try:
             matched = self._run_task(task)
             runtime.executions += 1
+            if task.max_executions > 0 and runtime.executions >= task.max_executions:
+                runtime.completed = True
+                self._log("stop", f"Task[{task.name}] 已执行 {runtime.executions}/{task.max_executions} 次，进入下一个任务")
+                self._advance_to_next_task()
+                return
             runtime.fail_count = 0 if matched else runtime.fail_count + 1
             if runtime.fail_count >= task.max_failures:
                 task.enabled = False
-                self._log("stop", f"Task[{task.name}] 连续失败 {runtime.fail_count} 次，已自动暂停")
+                self._log("stop", f"Task[{task.name}] 连续失败 {runtime.fail_count} 次，已自动暂停并进入下一个任务")
+                self._advance_to_next_task()
         finally:
             runtime.running = False
             runtime.next_run = time.monotonic() + task.interval_ms / 1000

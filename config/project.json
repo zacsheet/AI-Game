@@ -18,6 +18,7 @@
       "execute_mode": "sequence",
       "on_no_match": "continue",
       "max_failures": 5,
+      "max_executions": 0,
       "rules": [
         {
           "id": "rule_63eec86b",
@@ -42,108 +43,18 @@
               "to_x": 0,
               "to_y": 0,
               "curve": "bezier"
-            },
-            {
-              "type": "click",
-              "use_match": false,
-              "x": 2034,
-              "y": 898,
-              "button": "left",
-              "offset_random": 0,
-              "delay_before_ms": 0,
-              "delay_after_ms": 0,
-              "duration_ms": 0,
-              "key": "",
-              "to_x": 0,
-              "to_y": 0,
-              "curve": "bezier"
-            },
-            {
-              "type": "click",
-              "use_match": false,
-              "x": 1970,
-              "y": 1075,
-              "button": "left",
-              "offset_random": 0,
-              "delay_before_ms": 0,
-              "delay_after_ms": 0,
-              "duration_ms": 0,
-              "key": "",
-              "to_x": 0,
-              "to_y": 0,
-              "curve": "bezier"
-            },
-            {
-              "type": "click",
-              "use_match": false,
-              "x": 1492,
-              "y": 1125,
-              "button": "left",
-              "offset_random": 0,
-              "delay_before_ms": 0,
-              "delay_after_ms": 0,
-              "duration_ms": 0,
-              "key": "",
-              "to_x": 0,
-              "to_y": 0,
-              "curve": "bezier"
-            },
-            {
-              "type": "click",
-              "use_match": false,
-              "x": 2118,
-              "y": 780,
-              "button": "left",
-              "offset_random": 0,
-              "delay_before_ms": 0,
-              "delay_after_ms": 0,
-              "duration_ms": 0,
-              "key": "",
-              "to_x": 0,
-              "to_y": 0,
-              "curve": "bezier"
-            },
-            {
-              "type": "click",
-              "use_match": false,
-              "x": 2118,
-              "y": 780,
-              "button": "left",
-              "offset_random": 0,
-              "delay_before_ms": 0,
-              "delay_after_ms": 0,
-              "duration_ms": 0,
-              "key": "",
-              "to_x": 0,
-              "to_y": 0,
-              "curve": "bezier"
-            },
-            {
-              "type": "click",
-              "use_match": false,
-              "x": 2110,
-              "y": 673,
-              "button": "left",
-              "offset_random": 0,
-              "delay_before_ms": 0,
-              "delay_after_ms": 0,
-              "duration_ms": 0,
-              "key": "",
-              "to_x": 0,
-              "to_y": 0,
-              "curve": "bezier"
             }
           ],
           "not_found": "continue",
           "next_on_found": "",
-          "next_on_not_found": "rule_0ab5bd5c"
+          "next_on_not_found": ""
         },
         {
           "id": "rule_0ab5bd5c",
           "name": "规则 2",
           "enabled": true,
           "image": "联盟科技.jpg",
-          "threshold": 0.88,
+          "threshold": 0.87,
           "multi": false,
           "roi_override": null,
           "actions": [
@@ -163,7 +74,7 @@
               "curve": "bezier"
             }
           ],
-          "not_found": "continue",
+          "not_found": "skip_task",
           "next_on_found": "rule_b7bf0c1b",
           "next_on_not_found": ""
         },
@@ -236,9 +147,9 @@
           "actions": [
             {
               "type": "click",
-              "use_match": true,
-              "x": 0,
-              "y": 0,
+              "use_match": false,
+              "x": 1271,
+              "y": 729,
               "button": "left",
               "offset_random": 0,
               "delay_before_ms": 0,
@@ -250,10 +161,40 @@
               "curve": "bezier"
             },
             {
+              "type": "drag",
+              "use_match": false,
+              "x": 1736,
+              "y": 572,
+              "button": "left",
+              "offset_random": 0,
+              "delay_before_ms": 0,
+              "delay_after_ms": 0,
+              "duration_ms": 1125,
+              "key": "",
+              "to_x": 2263,
+              "to_y": 849,
+              "curve": "bezier"
+            },
+            {
+              "type": "drag",
+              "use_match": false,
+              "x": 2175,
+              "y": 697,
+              "button": "left",
+              "offset_random": 0,
+              "delay_before_ms": 0,
+              "delay_after_ms": 0,
+              "duration_ms": 1234,
+              "key": "",
+              "to_x": 1784,
+              "to_y": 958,
+              "curve": "bezier"
+            },
+            {
               "type": "click",
               "use_match": false,
-              "x": 2104,
-              "y": 590,
+              "x": 751,
+              "y": 1416,
               "button": "left",
               "offset_random": 0,
               "delay_before_ms": 0,
@@ -265,18 +206,18 @@
               "curve": "bezier"
             },
             {
-              "type": "click",
+              "type": "drag",
               "use_match": false,
-              "x": 2002,
-              "y": 940,
+              "x": 1656,
+              "y": 786,
               "button": "left",
               "offset_random": 0,
               "delay_before_ms": 0,
               "delay_after_ms": 0,
-              "duration_ms": 0,
+              "duration_ms": 1188,
               "key": "",
-              "to_x": 0,
-              "to_y": 0,
+              "to_x": 780,
+              "to_y": 838,
               "curve": "bezier"
             }
           ],
@@ -285,6 +226,32 @@
           "next_on_not_found": ""
         }
       ]
+    },
+    {
+      "id": "task_a8b076ad",
+      "name": "任务 2",
+      "enabled": true,
+      "interval_ms": 3000,
+      "window_title": "",
+      "roi": null,
+      "execute_mode": "sequence",
+      "on_no_match": "skip",
+      "max_failures": 5,
+      "max_executions": 2,
+      "rules": []
+    },
+    {
+      "id": "task_b6f9e2b1",
+      "name": "任务 3",
+      "enabled": true,
+      "interval_ms": 3000,
+      "window_title": "",
+      "roi": null,
+      "execute_mode": "sequence",
+      "on_no_match": "skip",
+      "max_failures": 5,
+      "max_executions": 0,
+      "rules": []
     }
   ]
 }

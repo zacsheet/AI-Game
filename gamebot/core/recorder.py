@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import time
 
 from PyQt6.QtCore import QObject, pyqtSignal
@@ -18,6 +19,7 @@ class InputRecorder(QObject):
         self._keyboard_listener = None
         self._last_move = 0.0
         self._stopping = False
+        self._press: tuple[int, int, str, float] | None = None
 
     @property
     def recording(self) -> bool:
@@ -27,6 +29,7 @@ class InputRecorder(QObject):
         if self.recording:
             return
         self._stopping = False
+        self._press = None
         try:
             from pynput import keyboard, mouse
         except Exception as exc:
@@ -48,6 +51,7 @@ class InputRecorder(QObject):
         keyboard_listener = self._keyboard_listener
         self._mouse_listener = None
         self._keyboard_listener = None
+        self._press = None
         if mouse_listener:
             mouse_listener.stop()
         if keyboard_listener:
@@ -63,9 +67,33 @@ class InputRecorder(QObject):
         return self.recording
 
     def _on_click(self, x: int, y: int, button, pressed: bool) -> None:
-        if self._stopping or pressed:
+        if self._stopping:
             return
         button_name = getattr(button, "name", "left")
+        now = time.monotonic()
+        if pressed:
+            self._press = (int(x), int(y), button_name, now)
+            return
+
+        start_x, start_y, start_button, start_time = self._press or (int(x), int(y), button_name, now)
+        self._press = None
+        distance = math.hypot(int(x) - start_x, int(y) - start_y)
+        duration_ms = int(max(0, now - start_time) * 1000)
+        if distance >= 8 and start_button == button_name:
+            self.action_recorded.emit(
+                Action(
+                    type="drag",
+                    use_match=False,
+                    x=start_x,
+                    y=start_y,
+                    button=button_name,
+                    to_x=int(x),
+                    to_y=int(y),
+                    duration_ms=max(80, duration_ms),
+                )
+            )
+            return
+
         action_type = "right_click" if button_name == "right" else "click"
         self.action_recorded.emit(Action(type=action_type, use_match=False, x=int(x), y=int(y), button=button_name))
 

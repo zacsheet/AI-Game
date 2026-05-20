@@ -103,6 +103,7 @@ class Task:
     execute_mode: ExecuteMode = "sequence"
     on_no_match: str = "skip"
     max_failures: int = 5
+    max_executions: int = 0
     rules: list[Rule] = field(default_factory=list)
 
     @classmethod
@@ -117,6 +118,7 @@ class Task:
             execute_mode=data.get("execute_mode", "sequence"),
             on_no_match=str(data.get("on_no_match", "skip")),
             max_failures=int(data.get("max_failures", 5)),
+            max_executions=int(data.get("max_executions", 0)),
             rules=[Rule.from_dict(item) for item in data.get("rules", [])],
         )
 

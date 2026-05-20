@@ -41,6 +41,8 @@ class EditorPanel(QWidget):
         self.task: Task | None = None
         self.image_root = Path(".")
         self.loading = False
+        self.selected_rule_id = ""
+        self.recording_rule_id = ""
         self.recorder = InputRecorder()
         self.coordinate_picker = CoordinatePicker(self)
 
@@ -56,6 +58,9 @@ class EditorPanel(QWidget):
         self.on_no_match.addItems(["skip", "continue"])
         self.max_failures = QSpinBox()
         self.max_failures.setRange(1, 100)
+        self.max_executions = QSpinBox()
+        self.max_executions.setRange(0, 1000000)
+        self.max_executions.setSpecialValueText("不限")
 
         self.roi_label = QLabel("全屏")
         self.set_roi_button = QPushButton("设置 ROI")
@@ -105,7 +110,7 @@ class EditorPanel(QWidget):
         self.delay_after.setRange(0, 600000)
 
         self.record_moves = QCheckBox("录制鼠标移动轨迹")
-        self.record_button = QPushButton("开始录制")
+        self.record_button = QPushButton("开始录制 (F7)")
         self.record_status = QLabel("未录制")
 
         self.blueprint = BlueprintView()
@@ -135,6 +140,7 @@ class EditorPanel(QWidget):
         form.addRow("执行策略", self.execute_mode)
         form.addRow("失败策略", self.on_no_match)
         form.addRow("连续失败暂停", self.max_failures)
+        form.addRow("最多执行次数", self.max_executions)
         roi_layout = QHBoxLayout()
         roi_layout.addWidget(self.roi_label, 1)
         roi_layout.addWidget(self.set_roi_button)
@@ -215,6 +221,7 @@ class EditorPanel(QWidget):
         for widget in [
             self.interval,
             self.max_failures,
+            self.max_executions,
             self.threshold,
             self.offset,
             self.duration,
@@ -270,9 +277,10 @@ class EditorPanel(QWidget):
         self.execute_mode.setCurrentText(task.execute_mode)
         self.on_no_match.setCurrentText(task.on_no_match)
         self.max_failures.setValue(task.max_failures)
+        self.max_executions.setValue(task.max_executions)
         self._update_roi_label()
         self._refresh_rules()
-        self.blueprint.set_task(task)
+        self._refresh_blueprint()
         self._refresh_blueprint_editor(self._current_rule())
         self.loading = False
 
@@ -282,8 +290,13 @@ class EditorPanel(QWidget):
         self.coordinate_picker.activateWindow()
 
     def toggle_recording(self) -> None:
+        if not self.recorder.recording:
+            rule = self._current_rule()
+            self.recording_rule_id = rule.id if rule else ""
         recording = self.recorder.toggle(self.record_moves.isChecked())
-        self.record_button.setText("停止录制" if recording else "开始录制")
+        if not recording:
+            self.recording_rule_id = ""
+        self.record_button.setText("停止录制 (F7)" if recording else "开始录制 (F7)")
 
     def _write_back(self) -> None:
         if self.loading or self.task is None:
@@ -295,6 +308,7 @@ class EditorPanel(QWidget):
         self.task.execute_mode = self.execute_mode.currentText()
         self.task.on_no_match = self.on_no_match.currentText()
         self.task.max_failures = self.max_failures.value()
+        self.task.max_executions = self.max_executions.value()
 
         rule = self._current_rule()
         if rule:
@@ -340,17 +354,26 @@ class EditorPanel(QWidget):
         self._refresh_action_labels()
         self._refresh_rule_labels()
         self._refresh_branch_options(rule.id if rule else "")
-        self.blueprint.set_task(self.task)
+        self._refresh_blueprint()
         self._refresh_blueprint_editor(rule)
 
+    def _refresh_blueprint(self) -> None:
+        self.blueprint.set_task(self.task, self.image_root)
+
     def _refresh_rules(self) -> None:
+        selected_rule_id = self.selected_rule_id
         self.rules.clear()
         if not self.task:
             return
         for rule in self.task.rules:
             self.rules.addItem(QListWidgetItem(self._rule_label(rule)))
         if self.task.rules:
-            self.rules.setCurrentRow(0)
+            selected_row = 0
+            for index, rule in enumerate(self.task.rules):
+                if rule.id == selected_rule_id:
+                    selected_row = index
+                    break
+            self.rules.setCurrentRow(selected_row)
         else:
             self._show_rule(-1)
 
@@ -371,6 +394,7 @@ class EditorPanel(QWidget):
     def _show_rule(self, row: int) -> None:
         rule = self._current_rule()
         self.loading = True
+        self.selected_rule_id = rule.id if rule else ""
         enabled = rule is not None
         for widget in [
             self.rule_name,
@@ -540,6 +564,7 @@ class EditorPanel(QWidget):
     def _select_rule_by_id(self, rule_id: str) -> None:
         if not self.task:
             return
+        self.selected_rule_id = rule_id
         for index, rule in enumerate(self.task.rules):
             if rule.id == rule_id:
                 self.rules.setCurrentRow(index)
@@ -553,7 +578,7 @@ class EditorPanel(QWidget):
         self._refresh_rules()
         self.rules.setCurrentRow(len(self.task.rules) - 1)
         self.changed.emit()
-        self.blueprint.set_task(self.task)
+        self._refresh_blueprint()
 
     def _remove_rule(self) -> None:
         if not self.task:
@@ -568,7 +593,7 @@ class EditorPanel(QWidget):
                     rule.next_on_not_found = ""
             self._refresh_rules()
             self.changed.emit()
-            self.blueprint.set_task(self.task)
+            self._refresh_blueprint()
 
     def _add_action(self) -> None:
         rule = self._current_rule()
@@ -578,7 +603,7 @@ class EditorPanel(QWidget):
         self._refresh_actions()
         self.actions.setCurrentRow(len(rule.actions) - 1)
         self.changed.emit()
-        self.blueprint.set_task(self.task)
+        self._refresh_blueprint()
 
     def _remove_action(self) -> None:
         rule = self._current_rule()
@@ -590,7 +615,7 @@ class EditorPanel(QWidget):
             self._refresh_actions()
             self.actions.setCurrentRow(min(row, len(rule.actions) - 1))
             self.changed.emit()
-            self.blueprint.set_task(self.task)
+            self._refresh_blueprint()
 
     def _pick_image(self) -> None:
         path, _ = QFileDialog.getOpenFileName(self, "选择模板图片", str(self.image_root), "Images (*.png *.jpg *.jpeg *.bmp)")
@@ -639,16 +664,17 @@ class EditorPanel(QWidget):
         if self._is_record_button_click(action):
             self.toggle_recording()
             return
-        rule = self._current_rule()
+        rule = self._recording_rule()
         if not rule:
             return
         rule.actions.append(action)
+        self._select_rule_by_id(rule.id)
         self._refresh_actions()
         self.actions.setCurrentRow(len(rule.actions) - 1)
         self.changed.emit()
         self._refresh_action_labels()
         self._refresh_rule_labels()
-        self.blueprint.set_task(self.task)
+        self._refresh_blueprint()
         self.log_requested.emit("info", f"已录制动作: {action.type}")
 
     def _record_status_changed(self, message: str) -> None:
@@ -661,3 +687,12 @@ class EditorPanel(QWidget):
         top_left = self.record_button.mapToGlobal(self.record_button.rect().topLeft())
         bottom_right = self.record_button.mapToGlobal(self.record_button.rect().bottomRight())
         return top_left.x() <= action.x <= bottom_right.x() and top_left.y() <= action.y <= bottom_right.y()
+
+    def _recording_rule(self) -> Rule | None:
+        if not self.task:
+            return None
+        target_id = self.recording_rule_id or self.selected_rule_id
+        for rule in self.task.rules:
+            if rule.id == target_id:
+                return rule
+        return self._current_rule()

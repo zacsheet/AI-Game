@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pyautogui
 
-from PyQt6.QtCore import QTimer, pyqtSignal
-from PyQt6.QtGui import QGuiApplication
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal
+from PyQt6.QtGui import QGuiApplication, QKeyEvent
 from PyQt6.QtWidgets import QDialog, QHBoxLayout, QLabel, QPushButton, QVBoxLayout
 
 
@@ -13,14 +13,14 @@ class CoordinatePicker(QDialog):
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
         self.setWindowTitle("坐标拾取")
-        self.setMinimumWidth(320)
+        self.setMinimumWidth(360)
         self.value_label = QLabel("X: 0  Y: 0")
         self.value_label.setStyleSheet("font-size: 24px; font-weight: 600;")
-        self.hint_label = QLabel("移动鼠标查看屏幕坐标，可复制，也可填入当前动作。")
+        self.hint_label = QLabel("移动鼠标查看坐标。按 C 复制，Enter 用于当前动作，Esc 关闭。")
 
-        self.copy_button = QPushButton("复制坐标")
-        self.use_button = QPushButton("用于当前动作")
-        self.close_button = QPushButton("关闭")
+        self.copy_button = QPushButton("复制坐标 (C)")
+        self.use_button = QPushButton("用于当前动作 (Enter)")
+        self.close_button = QPushButton("关闭 (Esc)")
 
         button_row = QHBoxLayout()
         button_row.addWidget(self.copy_button)
@@ -43,10 +43,28 @@ class CoordinatePicker(QDialog):
     def showEvent(self, event) -> None:
         super().showEvent(event)
         self.timer.start()
+        self.activateWindow()
+        self.setFocus(Qt.FocusReason.ShortcutFocusReason)
 
     def hideEvent(self, event) -> None:
         self.timer.stop()
         super().hideEvent(event)
+
+    def keyPressEvent(self, event: QKeyEvent) -> None:
+        key = event.key()
+        if key == Qt.Key.Key_C:
+            self._copy()
+            event.accept()
+            return
+        if key in {Qt.Key.Key_Return, Qt.Key.Key_Enter}:
+            self._use_current()
+            event.accept()
+            return
+        if key == Qt.Key.Key_Escape:
+            self.close()
+            event.accept()
+            return
+        super().keyPressEvent(event)
 
     def _current_position(self) -> tuple[int, int]:
         point = pyautogui.position()
@@ -59,6 +77,7 @@ class CoordinatePicker(QDialog):
     def _copy(self) -> None:
         x, y = self._current_position()
         QGuiApplication.clipboard().setText(f"{x},{y}")
+        self.value_label.setText(f"X: {x}  Y: {y}  已复制")
 
     def _use_current(self) -> None:
         x, y = self._current_position()

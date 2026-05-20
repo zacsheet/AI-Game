@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from pathlib import Path
 
 from PyQt6.QtCore import QObject, pyqtSignal
@@ -17,6 +18,7 @@ from PyQt6.QtWidgets import (
 
 from gamebot.core.scheduler import Scheduler
 from gamebot.models import Project, Task
+from gamebot.models.config import new_id
 from gamebot.ui.editor_panel import EditorPanel
 from gamebot.ui.log_panel import LogPanel
 from gamebot.ui.task_panel import TaskPanel
@@ -85,6 +87,7 @@ class GameBotWindow(QMainWindow):
     def _connect(self) -> None:
         self.task_panel.task_selected.connect(self._select_task)
         self.task_panel.add_task_requested.connect(self._add_task)
+        self.task_panel.duplicate_task_requested.connect(self._duplicate_task)
         self.task_panel.delete_task_requested.connect(self._delete_task)
         self.task_panel.move_task_requested.connect(self._move_task)
         self.editor.changed.connect(self._on_changed)
@@ -114,6 +117,31 @@ class GameBotWindow(QMainWindow):
         self._save_silent()
         self._refresh()
         self.task_panel.list.setCurrentRow(len(self.project.tasks) - 1)
+
+    def _duplicate_task(self, row: int) -> None:
+        if row < 0 or row >= len(self.project.tasks):
+            return
+        source = self.project.tasks[row]
+        copied = deepcopy(source)
+        copied.id = new_id("task")
+        copied.name = f"{source.name} 副本"
+        copied.enabled = True
+        rule_id_map: dict[str, str] = {}
+        for rule in copied.rules:
+            old_id = rule.id
+            rule.id = new_id("rule")
+            rule_id_map[old_id] = rule.id
+        for rule in copied.rules:
+            if rule.next_on_found in rule_id_map:
+                rule.next_on_found = rule_id_map[rule.next_on_found]
+            if rule.next_on_not_found in rule_id_map:
+                rule.next_on_not_found = rule_id_map[rule.next_on_not_found]
+        self.project.tasks.insert(row + 1, copied)
+        self._save_silent()
+        self.task_panel.set_tasks(self.project.tasks)
+        self.task_panel.list.setCurrentRow(row + 1)
+        self._select_task(row + 1)
+        self._append_log("info", f"已复制任务 {source.name}")
 
     def _delete_task(self, row: int) -> None:
         if row < 0 or row >= len(self.project.tasks):
