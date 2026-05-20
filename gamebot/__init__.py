@@ -1,0 +1,1 @@
+"""GameBot desktop automation package."""

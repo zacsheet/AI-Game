@@ -1,0 +1,71 @@
+{
+  "version": "1.0",
+  "name": "我的游戏配置",
+  "hotkeys": {
+    "stop_all": "F9",
+    "pause_resume": "F8"
+  },
+  "tasks": [
+    {
+      "id": "task_1373375d",
+      "name": "任务 1",
+      "enabled": true,
+      "interval_ms": 3000,
+      "window_title": "",
+      "roi": null,
+      "execute_mode": "sequence",
+      "on_no_match": "continue",
+      "max_failures": 5,
+      "rules": [
+        {
+          "id": "rule_e0316001",
+          "name": "规则 1",
+          "enabled": true,
+          "image": "",
+          "threshold": 0.88,
+          "multi": false,
+          "roi_override": null,
+          "actions": [
+            {
+              "type": "click",
+              "button": "left",
+              "offset_random": 0,
+              "delay_before_ms": 0,
+              "delay_after_ms": 0,
+              "duration_ms": 0,
+              "key": "",
+              "to_x": 0,
+              "to_y": 0,
+              "curve": "bezier"
+            }
+          ],
+          "not_found": "continue"
+        }
+      ]
+    },
+    {
+      "id": "task_a784032a",
+      "name": "任务 2",
+      "enabled": true,
+      "interval_ms": 3000,
+      "window_title": "",
+      "roi": null,
+      "execute_mode": "sequence",
+      "on_no_match": "skip",
+      "max_failures": 5,
+      "rules": []
+    },
+    {
+      "id": "task_71ca15e4",
+      "name": "任务 3",
+      "enabled": true,
+      "interval_ms": 3000,
+      "window_title": "",
+      "roi": null,
+      "execute_mode": "sequence",
+      "on_no_match": "skip",
+      "max_failures": 5,
+      "rules": []
+    }
+  ]
+}
