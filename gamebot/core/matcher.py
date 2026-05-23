@@ -26,8 +26,12 @@ class Match:
 class TemplateMatcher:
     def __init__(self, image_root: str | Path = ".") -> None:
         self.image_root = Path(image_root)
+        self.last_score: float | None = None
+        self.last_location: tuple[int, int] | None = None
 
     def match_rule(self, rule: Rule, task_roi: Rect | None = None) -> list[Match]:
+        self.last_score = None
+        self.last_location = None
         if not rule.image:
             return []
         image_path = Path(rule.image)
@@ -44,10 +48,12 @@ class TemplateMatcher:
 
         result = cv2.matchTemplate(frame, template, cv2.TM_CCOEFF_NORMED)
         h, w = template.shape[:2]
+        _, score, _, loc = cv2.minMaxLoc(result)
+        self.last_score = float(score)
+        self.last_location = (loc[0] + origin[0], loc[1] + origin[1])
         if rule.multi:
             return self._multi_matches(result, w, h, rule.threshold, origin)
 
-        _, score, _, loc = cv2.minMaxLoc(result)
         if score < rule.threshold:
             return []
         return [Match(x=loc[0] + origin[0], y=loc[1] + origin[1], w=w, h=h, score=float(score))]

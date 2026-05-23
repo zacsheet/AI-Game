@@ -10,7 +10,7 @@ from typing import Callable
 from gamebot.core.executor import ActionExecutor
 from gamebot.core.matcher import TemplateMatcher
 from gamebot.core.window import find_window_state
-from gamebot.models import Project, Task
+from gamebot.models import Project, Rule, Task
 
 
 LogCallback = Callable[[str, str], None]
@@ -24,6 +24,13 @@ class TaskRuntime:
     fail_count: int = 0
     executions: int = 0
     completed: bool = False
+
+
+@dataclass
+class StepResult:
+    matched: bool
+    next_rule_index: int
+    finished: bool = False
 
 
 class Scheduler:
@@ -66,6 +73,71 @@ class Scheduler:
         self._pause_event.set()
         self._log("warn", "已暂停运行")
         return True
+
+    def run_rule_once(self, task: Task, rule_index: int = 0) -> StepResult:
+        state = find_window_state(task.window_title)
+        if not state.available:
+            self._log("warn", f"Task[{task.name}] {state.reason or '窗口不可用'}，单步执行已暂停")
+            return StepResult(matched=False, next_rule_index=rule_index, finished=False)
+        if not task.rules:
+            self._log("warn", f"Task[{task.name}] 没有可执行规则")
+            return StepResult(matched=False, next_rule_index=0, finished=True)
+        if rule_index < 0 or rule_index >= len(task.rules):
+            rule_index = 0
+
+        rule = task.rules[rule_index]
+        self._log("info", f"单步执行 Task[{task.name}] Rule[{rule.name}]")
+        if not rule.enabled:
+            next_index = rule_index + 1
+            finished = next_index >= len(task.rules)
+            self._log("skip", f"Task[{task.name}] Rule[{rule.name}] 已禁用")
+            return StepResult(matched=False, next_rule_index=0 if finished else next_index, finished=finished)
+
+        rule_positions = self._rule_positions(task)
+        try:
+            matches = self.matcher.match_rule(rule, task.roi)
+        except Exception as exc:
+            self._log("error", f"Task[{task.name}] Rule[{rule.name}] {exc}")
+            next_index = rule_index + 1
+            finished = next_index >= len(task.rules)
+            return StepResult(matched=False, next_rule_index=0 if finished else next_index, finished=finished)
+
+        if not matches:
+            self._log_not_found(task, rule)
+            if rule.next_on_not_found == END_TASK or rule.not_found == "skip_task":
+                self._log("info", f"Task[{task.name}] 不成立分支结束本轮任务")
+                return StepResult(matched=False, next_rule_index=0, finished=True)
+            jump_to = rule_positions.get(rule.next_on_not_found)
+            if jump_to is not None:
+                self._log_next_step(task, jump_to)
+                return StepResult(matched=False, next_rule_index=jump_to)
+            next_index = rule_index + 1
+            finished = next_index >= len(task.rules)
+            self._log_next_step(task, 0 if finished else next_index, finished)
+            return StepResult(matched=False, next_rule_index=0 if finished else next_index, finished=finished)
+
+        for match in matches:
+            self._log("ok", f"Task[{task.name}] 找到 {rule.image} ({match.score:.2f})")
+            try:
+                for message in self.executor.execute(rule.actions, match):
+                    self._log("ok", f"Task[{task.name}] {message}")
+            except Exception as exc:
+                self._log("error", f"Task[{task.name}] 执行动作失败: {exc}")
+            if not rule.multi:
+                break
+            time.sleep(0.1)
+
+        if rule.next_on_found == END_TASK:
+            self._log("info", f"Task[{task.name}] 成立分支结束本轮任务")
+            return StepResult(matched=True, next_rule_index=0, finished=True)
+        jump_to = rule_positions.get(rule.next_on_found)
+        if jump_to is not None:
+            self._log_next_step(task, jump_to)
+            return StepResult(matched=True, next_rule_index=jump_to)
+        next_index = rule_index + 1
+        finished = next_index >= len(task.rules)
+        self._log_next_step(task, 0 if finished else next_index, finished)
+        return StepResult(matched=True, next_rule_index=0 if finished else next_index, finished=finished)
 
     def _loop(self) -> None:
         while not self._stop_event.is_set():
@@ -149,7 +221,7 @@ class Scheduler:
 
         any_matched = False
         rule_index = 0
-        rule_positions = {rule.id: index for index, rule in enumerate(task.rules)}
+        rule_positions = self._rule_positions(task)
         steps = 0
         max_steps = max(1, len(task.rules) * 3)
 
@@ -168,7 +240,7 @@ class Scheduler:
                 continue
 
             if not matches:
-                self._log("skip", f"Task[{task.name}] 未找到 {rule.image} -> {rule.not_found}")
+                self._log_not_found(task, rule)
                 if rule.next_on_not_found == END_TASK:
                     self._log("info", f"Task[{task.name}] 不成立分支结束本轮任务")
                     return any_matched
@@ -205,6 +277,27 @@ class Scheduler:
         if steps >= max_steps:
             self._log("warn", f"Task[{task.name}] 分支跳转次数过多，已停止本轮任务")
         return any_matched
+
+    @staticmethod
+    def _rule_positions(task: Task) -> dict[str, int]:
+        return {rule.id: index for index, rule in enumerate(task.rules)}
+
+    def _log_not_found(self, task: Task, rule: Rule) -> None:
+        if self.matcher.last_score is None:
+            detail = "无可用相似度"
+        else:
+            location = self.matcher.last_location
+            location_text = "未知位置" if location is None else f"位置 ({location[0]}, {location[1]})"
+            detail = f"最高相似度 {self.matcher.last_score:.3f}，{location_text}，阈值 {rule.threshold:.3f}"
+        target = rule.image or rule.name
+        self._log("skip", f"Task[{task.name}] 未找到 {target}（{detail}）-> {rule.not_found}")
+
+    def _log_next_step(self, task: Task, rule_index: int, finished: bool = False) -> None:
+        if finished or rule_index >= len(task.rules):
+            self._log("info", f"Task[{task.name}] 本轮规则结束，下次单步从第一条规则开始")
+            return
+        rule = task.rules[rule_index]
+        self._log("info", f"Task[{task.name}] 下一步将执行 Rule[{rule.name}]")
 
     def _log(self, level: str, message: str) -> None:
         stamped = f"{datetime.now().strftime('%H:%M:%S')}  {message}"

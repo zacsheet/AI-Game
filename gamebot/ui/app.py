@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from pathlib import Path
+import threading
 
 from PyQt6.QtCore import QObject, pyqtSignal
 from PyQt6.QtWidgets import (
@@ -33,6 +34,7 @@ class ControlBridge(QObject):
     pause_requested = pyqtSignal()
     coordinate_requested = pyqtSignal()
     record_requested = pyqtSignal()
+    step_finished = pyqtSignal()
 
 
 class GameBotWindow(QMainWindow):
@@ -42,6 +44,9 @@ class GameBotWindow(QMainWindow):
         self.project_path = Path("config/project.json")
         self.project = self._initial_project()
         self.scheduler: Scheduler | None = None
+        self.step_scheduler: Scheduler | None = None
+        self.step_running = False
+        self.step_positions: dict[str, int] = {}
         self.bridge = LogBridge()
         self.controls = ControlBridge()
 
@@ -64,10 +69,12 @@ class GameBotWindow(QMainWindow):
         self.import_button = QPushButton("导入")
         self.export_button = QPushButton("导出")
         self.run_button = QPushButton("运行")
+        self.step_button = QPushButton("单步")
         self.stop_button = QPushButton("停止")
         toolbar.addWidget(self.import_button)
         toolbar.addWidget(self.export_button)
         toolbar.addSeparator()
+        toolbar.addWidget(self.step_button)
         toolbar.addWidget(self.run_button)
         toolbar.addWidget(self.stop_button)
         self.addToolBar(toolbar)
@@ -94,6 +101,7 @@ class GameBotWindow(QMainWindow):
         self.editor.log_requested.connect(self._append_log)
         self.import_button.clicked.connect(self._import_project)
         self.export_button.clicked.connect(self._export_project)
+        self.step_button.clicked.connect(self._step_once)
         self.run_button.clicked.connect(self._start)
         self.stop_button.clicked.connect(self._stop)
         self.bridge.received.connect(self._append_log)
@@ -101,6 +109,7 @@ class GameBotWindow(QMainWindow):
         self.controls.pause_requested.connect(self._toggle_pause)
         self.controls.coordinate_requested.connect(self.editor.show_coordinate_picker)
         self.controls.record_requested.connect(self.editor.toggle_recording)
+        self.controls.step_finished.connect(self._on_step_finished)
 
     def _refresh(self) -> None:
         self.task_panel.set_tasks(self.project.tasks)
@@ -206,12 +215,16 @@ class GameBotWindow(QMainWindow):
             QMessageBox.critical(self, "导出失败", str(exc))
 
     def _start(self) -> None:
+        if self.step_running:
+            self._append_log("warn", "单步执行中，暂时不能启动连续运行")
+            return
         self._save_silent()
         if self.scheduler and self.scheduler.running:
             return
         self.scheduler = Scheduler(self.project, self.project_path.parent, self.bridge.received.emit)
         self.scheduler.start()
         self.run_button.setEnabled(False)
+        self.step_button.setEnabled(False)
         self.stop_button.setEnabled(True)
         self.statusBar().showMessage("运行中")
 
@@ -219,8 +232,43 @@ class GameBotWindow(QMainWindow):
         if self.scheduler:
             self.scheduler.stop()
         self.run_button.setEnabled(True)
+        self.step_button.setEnabled(True)
         self.stop_button.setEnabled(False)
         self.statusBar().showMessage("已停止")
+
+    def _step_once(self) -> None:
+        if self.scheduler and self.scheduler.running:
+            self._append_log("warn", "连续运行中，暂时不能单步执行")
+            return
+        if self.step_running:
+            return
+        row = self.task_panel.list.currentRow()
+        task = self.project.tasks[row] if 0 <= row < len(self.project.tasks) else None
+        if task is None:
+            self._append_log("warn", "请先选择一个任务")
+            return
+        self._save_silent()
+        self.step_running = True
+        self.step_button.setEnabled(False)
+        self.run_button.setEnabled(False)
+        self.statusBar().showMessage("单步执行中")
+        thread = threading.Thread(target=self._run_step_in_background, args=(task,), name="GameBotStep", daemon=True)
+        thread.start()
+
+    def _run_step_in_background(self, task: Task) -> None:
+        try:
+            self.step_scheduler = Scheduler(self.project, self.project_path.parent, self.bridge.received.emit)
+            start_index = self.step_positions.get(task.id, 0)
+            result = self.step_scheduler.run_rule_once(task, start_index)
+            self.step_positions[task.id] = 0 if result.finished else result.next_rule_index
+        finally:
+            self.controls.step_finished.emit()
+
+    def _on_step_finished(self) -> None:
+        self.step_running = False
+        self.step_button.setEnabled(True)
+        self.run_button.setEnabled(True)
+        self.statusBar().showMessage("单步完成")
 
     def _toggle_pause(self) -> None:
         if self.scheduler:
